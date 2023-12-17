@@ -28,19 +28,18 @@ class RGBMatrix:
         self.original_shape = None
         self.input_image_datatype = None
 
-        #working bitspace 16bit
+        #working bitspace = 16bit
         self.minRGBValue = 0
         self.maxRGBValue = 2 ** 16 - 1
 
     def __version__(self):
         return("RGBMatrix--V-0.002")
 
-    def __convert_to_np_matrix(self, image):
-        array = np.array(image)
-        return array
-
     def __set_original_shape(self, image):
         self.original_shape = image.shape
+
+    def __set_input_image_datatype(self, image):
+        self.input_image_datatype = image.dtype
 
     """
     To make the code as readable as possible, the channels
@@ -51,9 +50,6 @@ class RGBMatrix:
         self.r_matrix = array_3d[:,:,0]
         self.g_matrix = array_3d[:,:,1]
         self.b_matrix = array_3d[:,:,2]
-
-    def __set_input_image_datatype(self, image):
-        self.input_image_datatype = image.dtype
 
     def __convert_to_one_matrix(self):
         if self.r_matrix is not None:
@@ -94,7 +90,7 @@ class RGBMatrix:
     def load_image(self):
         try:
             image = imageio.imread(self.image_path)
-            self.__separate_channels(self.__convert_to_np_matrix(image))
+            self.__separate_channels(image)
             self.__set_input_image_datatype(image)
             self.__adjust_image_bitspace()
             self.__set_original_shape(image)
