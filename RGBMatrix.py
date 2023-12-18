@@ -25,12 +25,12 @@ class RGBMatrix:
         self.g_matrix_for_layer = None
         self.b_matrix_for_layer = None
 
-        self.original_shape = None
-        self.input_image_datatype = None
+        self.original_shape = None          #For control and later use
+        self.input_image_datatype = None    #For control and later use
 
-        #working bitspace = 16bit
+        #Working bitspace = 16bit
         self.minRGBValue = 0
-        self.maxRGBValue = 2 ** 16 - 1
+        self.maxRGBValue = 2 ** 64 - 1
 
     def __version__(self):
         return("RGBMatrix--V-0.002")
@@ -72,14 +72,16 @@ class RGBMatrix:
             self.b_matrix = self.b_matrix.round()
 
     """
-    Because the working bitspace is 16 bit, an imported image
-    must be scaled if it is not yet available in 16 bit
+    Because the std. working bitspace is 64 bit, an imported
+    image must be scaled
     """
-    def __adjust_image_bitspace(self):
+    def __adjust_input_image_bitspace(self):
         if self.input_image_datatype == "uint8":
-            self.__scale_rgb(2**8-1, 2**16-1)
+            self.__scale_rgb(2**8-1, self.maxRGBValue)
+        if self.input_image_datatype == "uint16":
+            self.__scale_rgb(2**16-1, self.maxRGBValue)
         if self.input_image_datatype == "uint32":
-            self.__scale_rgb(2**32-1, 2**32-1)
+            self._scale_rgb_(2**32-1, self.maxRGBValue)
 
     def __scale_rgb(self, start_bitspace, goal_bitspace):
         if self.r_matrix is not None:
@@ -92,7 +94,7 @@ class RGBMatrix:
             image = imageio.imread(self.image_path)
             self.__separate_channels(image)
             self.__set_input_image_datatype(image)
-            self.__adjust_image_bitspace()
+            self.__adjust_input_image_bitspace()
             self.__set_original_shape(image)
             return 0
         
@@ -104,9 +106,11 @@ class RGBMatrix:
             try:
                 self.__round_matrix()
                 array = self.__convert_to_one_matrix()
-                # Remove alpha channel if it exists
+                #Remove alpha channel if it exists
                 if array.shape[2] == 4:
                     array = array[:, :, :3]
+                #Scale back to 16 bit
+                array = np.interp(array, [0, self.maxRGBValue],[0, 2**16-1])
                 imageio.imwrite(output_path, array.astype(np.uint16))
                 return 0
 
@@ -139,7 +143,7 @@ class RGBMatrix:
             self.b_matrix = (self.b_matrix * transparency) + (1 - transparency) * self.b_matrix_for_layer
 
     """
-    multiplies the pixel values by the factor, for each individual channel
+    Multiplies the pixel values by the factor, for each individual channel.
     """
     def multiply_brightness_adjustment(self, factor):
         self.multiply_r_brightness_adjustment(factor)
