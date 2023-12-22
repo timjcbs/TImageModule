@@ -29,8 +29,8 @@ class RGBMatrix:
         self.input_image_datatype = None    #For control and later use
 
         #Working bitspace = 16bit
-        self.minRGBValue = 0
-        self.maxRGBValue = 2 ** 64 - 1
+        self.minWorkingRGBValue = 0
+        self.maxWorkingRGBValue = 2 ** 64 - 1
 
     def __version__(self):
         return("RGBMatrix--V-0.002")
@@ -52,24 +52,21 @@ class RGBMatrix:
         self.b_matrix = array_3d[:,:,2]
 
     def __convert_to_one_matrix(self):
-        if self.r_matrix is not None:
-            array = np.ones(self.original_shape)
-            array[:,:,0] = self.r_matrix
-            array[:,:,1] = self.g_matrix
-            array[:,:,2] = self.b_matrix
-            return array
+        array = np.ones(self.original_shape)
+        array[:,:,0] = self.r_matrix
+        array[:,:,1] = self.g_matrix
+        array[:,:,2] = self.b_matrix
+        return array
 
     def __clip_matrix_values(self):
-        if self.r_matrix is not None:
-            self.r_matrix = np.clip(self.r_matrix, self.minRGBValue, self.maxRGBValue)
-            self.g_matrix = np.clip(self.g_matrix, self.minRGBValue, self.maxRGBValue)
-            self.b_matrix = np.clip(self.b_matrix, self.minRGBValue, self.maxRGBValue)
+        self.r_matrix = np.clip(self.r_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+        self.g_matrix = np.clip(self.g_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+        self.b_matrix = np.clip(self.b_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
 
     def __round_matrix(self):
-        if self.r_matrix is not None:
-            self.r_matrix = self.r_matrix.round()
-            self.g_matrix = self.g_matrix.round()
-            self.b_matrix = self.b_matrix.round()
+        self.r_matrix = self.r_matrix.round()
+        self.g_matrix = self.g_matrix.round()
+        self.b_matrix = self.b_matrix.round()
 
     """
     Because the std. working bitspace is 64 bit, an imported
@@ -77,17 +74,16 @@ class RGBMatrix:
     """
     def __adjust_input_image_bitspace(self):
         if self.input_image_datatype == "uint8":
-            self.__scale_rgb(2**8-1, self.maxRGBValue)
+            self.__scale_rgb(2**8-1, self.maxWorkingRGBValue)
         if self.input_image_datatype == "uint16":
-            self.__scale_rgb(2**16-1, self.maxRGBValue)
+            self.__scale_rgb(2**16-1, self.maxWorkingRGBValue)
         if self.input_image_datatype == "uint32":
-            self._scale_rgb_(2**32-1, self.maxRGBValue)
+            self._scale_rgb_(2**32-1, self.maxWorkingRGBValue)
 
     def __scale_rgb(self, start_bitspace, goal_bitspace):
-        if self.r_matrix is not None:
-            self.r_matrix = np.interp(self.r_matrix, [0, start_bitspace],[0, goal_bitspace])
-            self.g_matrix = np.interp(self.g_matrix, [0, start_bitspace],[0, goal_bitspace])
-            self.b_matrix = np.interp(self.b_matrix, [0, start_bitspace],[0, goal_bitspace])
+        self.r_matrix = np.interp(self.r_matrix, [0, start_bitspace],[0, goal_bitspace])
+        self.g_matrix = np.interp(self.g_matrix, [0, start_bitspace],[0, goal_bitspace])
+        self.b_matrix = np.interp(self.b_matrix, [0, start_bitspace],[0, goal_bitspace])
 
     def load_image(self):
         try:
@@ -102,7 +98,7 @@ class RGBMatrix:
             return 1
 
     def save_16bit_image(self, output_path):
-        if self.r_matrix is not None:
+        if self.matrixIsOnline():
             try:
                 self.__round_matrix()
                 array = self.__convert_to_one_matrix()
@@ -110,12 +106,15 @@ class RGBMatrix:
                 if array.shape[2] == 4:
                     array = array[:, :, :3]
                 #Scale back to 16 bit
-                array = np.interp(array, [0, self.maxRGBValue],[0, 2**16-1])
+                array = np.interp(array, [0, self.maxWorkingRGBValue],[0, 2**16-1])
                 imageio.imwrite(output_path, array.astype(np.uint16))
                 return 0
 
             except:
                 return 1
+                
+    def matrixIsOnline(self):
+        return self.original_shape is not None
 
     """
     To make level-related adjustments, a copy of the current matrix
@@ -127,7 +126,7 @@ class RGBMatrix:
     g_matrix_for_layer, b_matrix_for_layer) according to transparency factor.
     """
     def set_layer(self):
-        if self.r_matrix is not None:
+        if self.matrixIsOnline():
             self.r_matrix_for_layer = self.r_matrix
             self.g_matrix_for_layer = self.g_matrix
             self.b_matrix_for_layer = self.b_matrix
@@ -137,7 +136,7 @@ class RGBMatrix:
     and the current working matrices and then saved in the working matrices.
     """
     def end_transparency_layer(self, transparency):
-        if self.r_matrix_for_layer is not None:
+        if self.matrixIsOnline():
             self.r_matrix = (self.r_matrix * transparency) + (1 - transparency) * self.r_matrix_for_layer
             self.g_matrix = (self.g_matrix * transparency) + (1 - transparency) * self.g_matrix_for_layer
             self.b_matrix = (self.b_matrix * transparency) + (1 - transparency) * self.b_matrix_for_layer
@@ -151,17 +150,17 @@ class RGBMatrix:
         self.multiply_b_brightness_adjustment(factor)
 
     def multiply_r_brightness_adjustment(self, factor):
-        if self.r_matrix is not None:
+        if self.matrixIsOnline():
             self.r_matrix = self.r_matrix * factor
             self.__clip_matrix_values()
 
     def multiply_g_brightness_adjustment(self, factor):
-        if self.g_matrix is not None:
+        if self.matrixIsOnline():
             self.g_matrix = self.g_matrix * factor
             self.__clip_matrix_values()
 
     def multiply_b_brightness_adjustment(self, factor):
-        if self.b_matrix is not None:
+        if self.matrixIsOnline():
             self.b_matrix = self.b_matrix * factor
             self.__clip_matrix_values()
 
