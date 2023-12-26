@@ -164,5 +164,16 @@ class RGBMatrix:
             self.b_matrix = self.b_matrix * factor
             self.__clip_matrix_values()
 
+    """
+    Factors do not have to add up to 1.
+    Normal grayscale images are calculated using the luminance
+    formula with R = 0.299 G = 0.587 B = 0.114
+    """
+    def convert_to_grayscale(self, r_factor, g_factor, b_factor):
+        new_matrix = (self.r_matrix * r_factor) + (self.g_matrix * g_factor) + (self.b_matrix * b_factor)
+        self.r_matrix = new_matrix
+        self.b_matrix = new_matrix
+        self.g_matrix = new_matrix
+
 if __name__ == "__main__":
     print("RGBMatrix--V-0.002")
