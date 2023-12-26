@@ -28,7 +28,7 @@ class RGBMatrix:
         self.original_shape = None          #For control and later use
         self.input_image_datatype = None    #For control and later use
 
-        #Working bitspace = 16bit
+        #Working bitspace = 64bit
         self.minWorkingRGBValue = 0
         self.maxWorkingRGBValue = 2 ** 64 - 1
 
@@ -170,10 +170,10 @@ class RGBMatrix:
     formula with R = 0.299 G = 0.587 B = 0.114
     """
     def convert_to_grayscale(self, r_factor, g_factor, b_factor):
-        new_matrix = (self.r_matrix * r_factor) + (self.g_matrix * g_factor) + (self.b_matrix * b_factor)
-        self.r_matrix = new_matrix
-        self.b_matrix = new_matrix
-        self.g_matrix = new_matrix
+        grayscale_matrix = (self.r_matrix * r_factor) + (self.g_matrix * g_factor) + (self.b_matrix * b_factor)
+        self.r_matrix = grayscale_matrix
+        self.b_matrix = grayscale_matrix
+        self.g_matrix = grayscale_matrix
 
 if __name__ == "__main__":
     print("RGBMatrix--V-0.002")
