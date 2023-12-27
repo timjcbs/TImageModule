@@ -102,9 +102,7 @@ class RGBMatrix:
             try:
                 self.__round_matrix()
                 array = self.__convert_to_one_matrix()
-                #Remove alpha channel if it exists
-                if array.shape[2] == 4:
-                    array = array[:, :, :3]
+                
                 #Scale back to 16 bit
                 array = np.interp(array, [0, self.maxWorkingRGBValue],[0, 2**16-1])
                 imageio.imwrite(output_path, array.astype(np.uint16))
