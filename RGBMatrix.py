@@ -7,10 +7,13 @@ Python 3.11.2
 RGBMatrix since 19.11.2023
 
 class RGBMatrix to store and manipulate pixel data in RGB colorformat
+central for the conversion of color images into grayscale images
 """
 
 import numpy as np
 import imageio
+
+from multiprocessing import Pool
 
 class RGBMatrix:
 
@@ -125,7 +128,7 @@ class RGBMatrix:
     """
     def set_layer(self):
         if self.matrixIsOnline():
-            self.r_matrix_for_layer = self.r_matrix
+            self.r_matrifx_for_layer = self.r_matrix
             self.g_matrix_for_layer = self.g_matrix
             self.b_matrix_for_layer = self.b_matrix
 
@@ -143,9 +146,20 @@ class RGBMatrix:
     Multiplies the pixel values by the factor, for each individual channel.
     """
     def multiply_brightness_adjustment(self, factor):
-        self.multiply_r_brightness_adjustment(factor)
-        self.multiply_g_brightness_adjustment(factor)
-        self.multiply_b_brightness_adjustment(factor)
+        # Erstellen Sie eine Pool-Instanz mit der Anzahl der gewünschten Prozesse
+        with Pool() as pool:
+            # Funktionen parallel aufrufen
+            pool.map(self.multiply_channel_brightness_adjustment, [(factor, 'r'), (factor, 'g'), (factor, 'b')])
+
+    def multiply_channel_brightness_adjustment(self, args):
+        factor, channel = args
+        # Anpassen, um nur eine einzelne Kanal-Anpassung durchzuführen
+        if channel == 'r':
+            self.multiply_r_brightness_adjustment(factor)
+        elif channel == 'g':
+            self.multiply_g_brightness_adjustment(factor)
+        elif channel == 'b':
+            self.multiply_b_brightness_adjustment(factor)
 
     def multiply_r_brightness_adjustment(self, factor):
         if self.matrixIsOnline():
@@ -168,10 +182,14 @@ class RGBMatrix:
     formula with R = 0.299 G = 0.587 B = 0.114
     """
     def convert_to_grayscale(self, r_factor, g_factor, b_factor):
-        grayscale_matrix = (self.r_matrix * r_factor) + (self.g_matrix * g_factor) + (self.b_matrix * b_factor)
-        self.r_matrix = grayscale_matrix
-        self.b_matrix = grayscale_matrix
-        self.g_matrix = grayscale_matrix
+        if self.matrixIsOnline():
+            r_factor = float(r_factor)
+            g_factor = float(g_factor)
+            b_factor = float(b_factor)
+            grayscale_matrix = (self.r_matrix * r_factor) + (self.g_matrix * g_factor) + (self.b_matrix * b_factor)
+            self.r_matrix = grayscale_matrix
+            self.b_matrix = grayscale_matrix
+            self.g_matrix = grayscale_matrix
 
 if __name__ == "__main__":
     print("RGBMatrix--V-0.002")
