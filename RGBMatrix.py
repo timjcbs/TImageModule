@@ -12,6 +12,7 @@ central for the conversion of color images into grayscale images
 
 import numpy as np
 import imageio
+import concurrent.futures
 
 from multiprocessing import Pool
 
@@ -146,24 +147,18 @@ class RGBMatrix:
     Multiplies the pixel values by the factor, for each individual channel.
     """
     def multiply_brightness_adjustment(self, factor):
-        # Erstellen Sie eine Pool-Instanz mit der Anzahl der gewünschten Prozesse
-        with Pool() as pool:
-            # Funktionen parallel aufrufen
-            pool.map(self.multiply_channel_brightness_adjustment, [(factor, 'r'), (factor, 'g'), (factor, 'b')])
+        with concurrent.futures.ThreadPoolExecutor() as executor:
 
-    def multiply_channel_brightness_adjustment(self, args):
-        factor, channel = args
-        # Anpassen, um nur eine einzelne Kanal-Anpassung durchzuführen
-        if channel == 'r':
-            self.multiply_r_brightness_adjustment(factor)
-        elif channel == 'g':
-            self.multiply_g_brightness_adjustment(factor)
-        elif channel == 'b':
-            self.multiply_b_brightness_adjustment(factor)
+            future_r = executor.submit(self.multiply_r_brightness_adjustment, factor)
+            future_g = executor.submit(self.multiply_g_brightness_adjustment, factor)
+            future_b = executor.submit(self.multiply_b_brightness_adjustment, factor)
+
+            concurrent.futures.wait([future_r, future_g, future_b])
+
 
     def multiply_r_brightness_adjustment(self, factor):
         if self.matrixIsOnline():
-            self.r_matrix = self.r_matrix * factor
+            self.r_matrix = (self.r_matrix * factor)
             self.__clip_matrix_values()
 
     def multiply_g_brightness_adjustment(self, factor):
