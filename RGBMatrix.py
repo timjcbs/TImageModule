@@ -33,7 +33,6 @@ class RGBMatrix:
         self.input_image_datatype = None    #For control and later use
 
         #Working bitspace = 64bit
-        self.minWorkingRGBValue = 0
         self.maxWorkingRGBValue = 2 ** 64 - 1
 
     def __version__(self):
@@ -94,9 +93,17 @@ class RGBMatrix:
             self._scale_rgb_(2**32-1, self.maxWorkingRGBValue)
 
     def __scale_rgb(self, start_bitspace, goal_bitspace):
-        self.r_matrix = np.interp(self.r_matrix, [0, start_bitspace],[0, goal_bitspace])
-        self.g_matrix = np.interp(self.g_matrix, [0, start_bitspace],[0, goal_bitspace])
-        self.b_matrix = np.interp(self.b_matrix, [0, start_bitspace],[0, goal_bitspace])
+
+        def scale_matrix(matrix):
+            return np.interp(matrix, [0, start_bitspace], [0, goal_bitspace])
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = [
+                executor.submit(scale_matrix, matrix)
+                for matrix in [self.r_matrix, self.g_matrix, self.b_matrix]
+            ]
+        results = [future.result() for future in futures]
+        self.r_matrix, self.g_matrix, self.b_matrix = results[0], results[1], results[2]
 
     def load_image(self):
         try:
