@@ -62,9 +62,18 @@ class RGBMatrix:
         array[:,:,2] = self.b_matrix
         return array
 
-    def __clip_matrix_values(self):
+    def __clip_all_matrix_values(self):
         self.r_matrix = np.clip(self.r_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
         self.g_matrix = np.clip(self.g_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+        self.b_matrix = np.clip(self.b_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+
+    def __clip_r_matrix_values(self):
+        self.r_matrix = np.clip(self.r_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+
+    def __clip_g_matrix_values(self):
+        self.g_matrix = np.clip(self.g_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+
+    def __clip_b_matrix_values(self):
         self.b_matrix = np.clip(self.b_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
 
     def __round_matrix(self):
@@ -155,21 +164,20 @@ class RGBMatrix:
 
             concurrent.futures.wait([future_r, future_g, future_b])
 
-
     def multiply_r_brightness_adjustment(self, factor):
         if self.matrixIsOnline():
             self.r_matrix = (self.r_matrix * factor)
-            self.__clip_matrix_values()
+            self.__clip_r_matrix_values()
 
     def multiply_g_brightness_adjustment(self, factor):
         if self.matrixIsOnline():
             self.g_matrix = self.g_matrix * factor
-            self.__clip_matrix_values()
+            self.__clip_g_matrix_values()
 
     def multiply_b_brightness_adjustment(self, factor):
         if self.matrixIsOnline():
             self.b_matrix = self.b_matrix * factor
-            self.__clip_matrix_values()
+            self.__clip_b_matrix_values()
 
     """
     Factors do not have to add up to 1.
