@@ -14,8 +14,6 @@ import numpy as np
 import imageio
 import concurrent.futures
 
-from multiprocessing import Pool
-
 class RGBMatrix:
 
     def __init__(self, image_path):
@@ -29,14 +27,14 @@ class RGBMatrix:
         self.g_matrix_for_layer = None
         self.b_matrix_for_layer = None
 
-        self.original_shape = None          #For control and later use
-        self.input_image_datatype = None    #For control and later use
+        self.original_shape = None  # For control and later use
+        self.input_image_datatype = None  # For control and later use
 
-        #Working bitspace = 64bit
+        # Working bitspace = 64bit
         self.maxWorkingRGBValue = 2 ** 64 - 1
 
     def __version__(self):
-        return("RGBMatrix--V-0.002")
+        return ("RGBMatrix---V-0.002---using-py3.9")
 
     def __set_original_shape(self, image):
         self.original_shape = image.shape
@@ -48,23 +46,24 @@ class RGBMatrix:
     To make the code as readable as possible, the channels
     are stored individually with meaningful names, therefore
     the function separates the 3d numpy matrix into three matrices.
-    """ 
+    """
+
     def __separate_channels(self, array_3d):
-        self.r_matrix = array_3d[:,:,0]
-        self.g_matrix = array_3d[:,:,1]
-        self.b_matrix = array_3d[:,:,2]
+        self.r_matrix = array_3d[:, :, 0]
+        self.g_matrix = array_3d[:, :, 1]
+        self.b_matrix = array_3d[:, :, 2]
 
     def __convert_to_one_matrix(self):
         array = np.ones(self.original_shape)
-        array[:,:,0] = self.r_matrix
-        array[:,:,1] = self.g_matrix
-        array[:,:,2] = self.b_matrix
+        array[:, :, 0] = self.r_matrix
+        array[:, :, 1] = self.g_matrix
+        array[:, :, 2] = self.b_matrix
         return array
 
     def __clip_all_matrix_values(self):
-        self.r_matrix = np.clip(self.r_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
-        self.g_matrix = np.clip(self.g_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
-        self.b_matrix = np.clip(self.b_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+        self.__clip_r_matrix_values()
+        self.__clip_g_matrix_values()
+        self.__clip_b_matrix_values()
 
     def __clip_r_matrix_values(self):
         self.r_matrix = np.clip(self.r_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
@@ -84,13 +83,14 @@ class RGBMatrix:
     Because the std. working bitspace is 64 bit, an imported
     image must be scaled
     """
+
     def __adjust_input_image_bitspace(self):
         if self.input_image_datatype == "uint8":
-            self.__scale_rgb(2**8-1, self.maxWorkingRGBValue)
+            self.__scale_rgb(2 ** 8 - 1, self.maxWorkingRGBValue)
         if self.input_image_datatype == "uint16":
-            self.__scale_rgb(2**16-1, self.maxWorkingRGBValue)
+            self.__scale_rgb(2 ** 16 - 1, self.maxWorkingRGBValue)
         if self.input_image_datatype == "uint32":
-            self._scale_rgb_(2**32-1, self.maxWorkingRGBValue)
+            self.__scale_rgb(2 ** 32 - 1, self.maxWorkingRGBValue)
 
     def __scale_rgb(self, start_bitspace, goal_bitspace):
 
@@ -113,7 +113,7 @@ class RGBMatrix:
             self.__adjust_input_image_bitspace()
             self.__set_original_shape(image)
             return 0
-        
+
         except:
             return 1
 
@@ -122,15 +122,15 @@ class RGBMatrix:
             try:
                 self.__round_matrix()
                 array = self.__convert_to_one_matrix()
-                
-                #Scale back to 16 bit
-                array = np.interp(array, [0, self.maxWorkingRGBValue],[0, 2**16-1])
+
+                # Scale back to 16 bit
+                array = np.interp(array, [0, self.maxWorkingRGBValue], [0, 2 ** 16 - 1])
                 imageio.imwrite(output_path, array.astype(np.uint16))
                 return 0
 
             except:
                 return 1
-                
+
     def matrixIsOnline(self):
         return self.original_shape is not None
 
@@ -143,9 +143,10 @@ class RGBMatrix:
     is combined with the temporarily saved version (r_matrix_for_layer, 
     g_matrix_for_layer, b_matrix_for_layer) according to transparency factor.
     """
+
     def set_layer(self):
         if self.matrixIsOnline():
-            self.r_matrifx_for_layer = self.r_matrix
+            self.r_matrix_for_layer = self.r_matrix
             self.g_matrix_for_layer = self.g_matrix
             self.b_matrix_for_layer = self.b_matrix
 
@@ -153,6 +154,7 @@ class RGBMatrix:
     The copy previously created by 'set_layer' is calculated with the transparency factor 
     and the current working matrices and then saved in the working matrices.
     """
+
     def end_transparency_layer(self, transparency):
         if self.matrixIsOnline():
             self.r_matrix = (self.r_matrix * transparency) + (1 - transparency) * self.r_matrix_for_layer
@@ -162,9 +164,9 @@ class RGBMatrix:
     """
     Multiplies the pixel values by the factor, for each individual channel.
     """
+
     def multiply_brightness_adjustment(self, factor):
         with concurrent.futures.ThreadPoolExecutor() as executor:
-
             future_r = executor.submit(self.multiply_r_brightness_adjustment, factor)
             future_g = executor.submit(self.multiply_g_brightness_adjustment, factor)
             future_b = executor.submit(self.multiply_b_brightness_adjustment, factor)
@@ -191,6 +193,7 @@ class RGBMatrix:
     Normal grayscale images are calculated using the luminance
     formula with R = 0.299 G = 0.587 B = 0.114
     """
+
     def convert_to_grayscale(self, r_factor, g_factor, b_factor):
         if self.matrixIsOnline():
             r_factor = float(r_factor)
@@ -200,6 +203,7 @@ class RGBMatrix:
             self.r_matrix = grayscale_matrix
             self.b_matrix = grayscale_matrix
             self.g_matrix = grayscale_matrix
+
 
 if __name__ == "__main__":
     print("RGBMatrix--V-0.002")
