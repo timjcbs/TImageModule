@@ -1,6 +1,9 @@
 """
 This code is licensed under GNU GENERAL PUBLIC LICENSE Version 3.
-See the accompanying LICENSE file or https://www.gnu.org/licenses/gpl-3.0.en.html for details.
+See the accompanying LICENSE file or 
+https://www.gnu.org/licenses/gpl-3.0.en.html 
+for details.
+
 Copyright (c) 2023 Tim Jacobs
 
 Python 3.11.2
@@ -8,6 +11,10 @@ RGBMatrix since 19.11.2023
 
 class RGBMatrix to store and manipulate pixel data in RGB colorformat
 central for the conversion of color images into grayscale images
+
+short-term goal: 
+    - improve control of the persistence of the image 
+      (self.original_shape can be used, among other things)
 """
 
 import numpy as np
@@ -36,6 +43,12 @@ class RGBMatrix:
     def __version__(self):
         return ("RGBMatrix---V-0.002---using-py3.9")
 
+    """
+    will be used later to control the persistence of the image
+    and and during export, when the three matrices are combined 
+    into a 3D matrix. it is also used to check whether an image
+    is loaded
+    """
     def __set_original_shape(self, image):
         self.original_shape = image.shape
 
@@ -43,16 +56,18 @@ class RGBMatrix:
         self.input_image_datatype = image.dtype
 
     """
-    To make the code as readable as possible, the channels
+    to make the code as readable as possible, the channels
     are stored individually with meaningful names, therefore
     the function separates the 3d numpy matrix into three matrices.
     """
-
     def __separate_channels(self, array_3d):
         self.r_matrix = array_3d[:, :, 0]
         self.g_matrix = array_3d[:, :, 1]
         self.b_matrix = array_3d[:, :, 2]
 
+    """
+    is used during export
+    """
     def __convert_to_one_matrix(self):
         array = np.ones(self.original_shape)
         array[:, :, 0] = self.r_matrix
@@ -60,30 +75,40 @@ class RGBMatrix:
         array[:, :, 2] = self.b_matrix
         return array
 
+    """
+    it is not necessary to check whether the matrix is online
+    because this function is only called from other functions
+    that do this themselves
+    """
     def __clip_all_matrix_values(self):
         self.__clip_r_matrix_values()
         self.__clip_g_matrix_values()
         self.__clip_b_matrix_values()
 
     def __clip_r_matrix_values(self):
-        self.r_matrix = np.clip(self.r_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+        self.r_matrix = np.clip(self.r_matrix, self.minWorkingRGBValue,\
+                                self.maxWorkingRGBValue)
 
     def __clip_g_matrix_values(self):
-        self.g_matrix = np.clip(self.g_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+        self.g_matrix = np.clip(self.g_matrix, self.minWorkingRGBValue,\
+                                self.maxWorkingRGBValue)
 
     def __clip_b_matrix_values(self):
-        self.b_matrix = np.clip(self.b_matrix, self.minWorkingRGBValue, self.maxWorkingRGBValue)
+        self.b_matrix = np.clip(self.b_matrix, self.minWorkingRGBValue,\
+                                self.maxWorkingRGBValue)
 
+    """
+    is used during export
+    """
     def __round_matrix(self):
         self.r_matrix = self.r_matrix.round()
         self.g_matrix = self.g_matrix.round()
         self.b_matrix = self.b_matrix.round()
 
     """
-    Because the std. working bitspace is 64 bit, an imported
+    because the std. working bitspace is 64 bit, an imported
     image must be scaled
     """
-
     def __adjust_input_image_bitspace(self):
         if self.input_image_datatype == "uint8":
             self.__scale_rgb(2 ** 8 - 1, self.maxWorkingRGBValue)
@@ -92,6 +117,10 @@ class RGBMatrix:
         if self.input_image_datatype == "uint32":
             self.__scale_rgb(2 ** 32 - 1, self.maxWorkingRGBValue)
 
+    """
+    by calling the individual rounding functions in parallel,
+    all channels are rounded in parallel
+    """
     def __scale_rgb(self, start_bitspace, goal_bitspace):
 
         def scale_matrix(matrix):
@@ -103,8 +132,14 @@ class RGBMatrix:
                 for matrix in [self.r_matrix, self.g_matrix, self.b_matrix]
             ]
         results = [future.result() for future in futures]
-        self.r_matrix, self.g_matrix, self.b_matrix = results[0], results[1], results[2]
+        self.r_matrix, self.g_matrix, self.b_matrix = results[0], results[1],\
+            results[2]
+        
 
+    """
+    permitted formats and properties are regulated by imageio.
+    depending on success, return value is returned.
+    """
     def load_image(self):
         try:
             image = imageio.imread(self.image_path)
@@ -117,6 +152,11 @@ class RGBMatrix:
         except:
             return 1
 
+    """
+    permitted formats and properties are regulated by imageio.
+    depending on success, return value is returned.
+    at 16bit, tiff and png are particularly useful
+    """
     def save_16bit_image(self, output_path):
         if self.matrixIsOnline():
             try:
@@ -135,15 +175,16 @@ class RGBMatrix:
         return self.original_shape is not None
 
     """
-    To make level-related adjustments, a copy of the current matrix
-    is created (before starting level-related adjustments).
+    to make level-related adjustments, a copy of the current matrix
+    is created (before starting level-related adjustments)
 
-    As an example for transparency level: After all level-related 
+    as an example for transparency level: After all level-related 
     adjustments have been made, the working matrix (r_matrix, g_matrix, b_matrix)
     is combined with the temporarily saved version (r_matrix_for_layer, 
-    g_matrix_for_layer, b_matrix_for_layer) according to transparency factor.
-    """
+    g_matrix_for_layer, b_matrix_for_layer) according to transparency factor
 
+    the storage requirement therefore increases through the use of layers
+    """
     def set_layer(self):
         if self.matrixIsOnline():
             self.r_matrix_for_layer = self.r_matrix
@@ -151,10 +192,9 @@ class RGBMatrix:
             self.b_matrix_for_layer = self.b_matrix
 
     """
-    The copy previously created by 'set_layer' is calculated with the transparency factor 
-    and the current working matrices and then saved in the working matrices.
+    the copy previously created by 'set_layer' is calculated with the transparency factor 
+    and the current working matrices and then saved in the working matrices
     """
-
     def end_transparency_layer(self, transparency):
         if self.matrixIsOnline():
             self.r_matrix = (self.r_matrix * transparency) + (1 - transparency) * self.r_matrix_for_layer
@@ -162,9 +202,9 @@ class RGBMatrix:
             self.b_matrix = (self.b_matrix * transparency) + (1 - transparency) * self.b_matrix_for_layer
 
     """
-    Multiplies the pixel values by the factor, for each individual channel.
+    parallel call of the channel-specific functions
+    multiplies the pixel values by the factor, for each individual channel
     """
-
     def multiply_brightness_adjustment(self, factor):
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future_r = executor.submit(self.multiply_r_brightness_adjustment, factor)
@@ -193,16 +233,14 @@ class RGBMatrix:
     Normal grayscale images are calculated using the luminance
     formula with R = 0.299 G = 0.587 B = 0.114
     """
-
     def convert_to_grayscale(self, r_factor, g_factor, b_factor):
         if self.matrixIsOnline():
             r_factor = float(r_factor)
             g_factor = float(g_factor)
             b_factor = float(b_factor)
-            grayscale_matrix = (self.r_matrix * r_factor) + (self.g_matrix * g_factor) + (self.b_matrix * b_factor)
-            self.r_matrix = grayscale_matrix
-            self.b_matrix = grayscale_matrix
-            self.g_matrix = grayscale_matrix
+            self.r_matrix = (self.r_matrix * r_factor) + (self.g_matrix * g_factor) + (self.b_matrix * b_factor)
+            self.b_matrix = self.r_matrix
+            self.g_matrix = self.r_matrix
 
 
 if __name__ == "__main__":
