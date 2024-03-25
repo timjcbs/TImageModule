@@ -6,7 +6,7 @@ for details.
 
 Copyright (c) 2023 Tim Jacobs
 
-Python 3.11.2
+Python 3.11
 RGBMatrix since 19.11.2023
 
 class RGBMatrix to store and manipulate pixel data in RGB colorformat
@@ -34,6 +34,8 @@ class RGBMatrix:
         self.g_matrix_for_layer = None
         self.b_matrix_for_layer = None
 
+        self.layer_raster = None
+
         self.original_shape = None  # For control and later use
         self.input_image_datatype = None  # For control and later use
 
@@ -42,6 +44,12 @@ class RGBMatrix:
 
     def __version__(self):
         return ("RGBMatrix---V-0.002---using-py3.9")
+    
+    def datatype(self):
+        if self.matrixIsOnline:
+            return(self.r_matrix.dtype)
+        else:
+            return("no image loaded yet")
 
     """
     will be used later to control the persistence of the image
@@ -132,9 +140,9 @@ class RGBMatrix:
                 for matrix in [self.r_matrix, self.g_matrix, self.b_matrix]
             ]
         results = [future.result() for future in futures]
+
         self.r_matrix, self.g_matrix, self.b_matrix = results[0], results[1],\
-            results[2]
-        
+            results[2]        
 
     """
     permitted formats and properties are regulated by imageio.
@@ -229,8 +237,8 @@ class RGBMatrix:
             self.__clip_b_matrix_values()
 
     """
-    Factors do not have to add up to 1.
-    Normal grayscale images are calculated using the luminance
+    factors do not have to add up to 1.
+    normal grayscale images are calculated using the luminance
     formula with R = 0.299 G = 0.587 B = 0.114
     """
     def convert_to_grayscale(self, r_factor, g_factor, b_factor):
@@ -242,6 +250,23 @@ class RGBMatrix:
             self.b_matrix = self.r_matrix
             self.g_matrix = self.r_matrix
 
+    """
+    iterates over the matrix, looking at the contrast of
+    the value with the value to the left above and to the
+    right below
+    """
+    def normal_deviation_sharpening(self):
+        if self.matrixIsOnline():
+            num_rows, num_cols = self.original_shape
+            num_rows += 1
+
+            for i in range(num_rows - 2):
+                for j in range(num_cols - 2):
+                    value = self.r_matrix[i][j]
+                    sidevalue = self.r_matrix[i][j-1]
+                    deviation = value / sidevalue
+
+                    self.layer_raster[i][j] =  deviation
 
 if __name__ == "__main__":
     print("RGBMatrix--V-0.002")
