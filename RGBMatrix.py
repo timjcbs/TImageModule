@@ -251,22 +251,46 @@ class RGBMatrix:
             self.g_matrix = self.r_matrix
 
     """
-    iterates over the matrix, looking at the contrast of
-    the value with the value to the left above and to the
-    right below
+    iterates over the matrix, compares points
+    with the ambient values (according to the
+    3x3 grid) after the following pattern:
+    
+                   X - X
+                   - X -
+                   X - X      
     """
-    def normal_deviation_sharpening(self):
+    def set_std_deviation_r_layer(self):
         if self.matrixIsOnline():
-            num_rows, num_cols = self.original_shape
-            num_rows += 1
+            if self.layer_raster is not None:
 
-            for i in range(num_rows - 2):
-                for j in range(num_cols - 2):
-                    value = self.r_matrix[i][j]
-                    sidevalue = self.r_matrix[i][j-1]
-                    deviation = value / sidevalue
+                num_rows, num_cols = self.original_shape
+                
+                for i in range(2, num_rows, 2):
+                    for j in range(2, num_cols, 2):
+                        
+                        value = self.r_matrix[i][j]
 
-                    self.layer_raster[i][j] =  deviation
+                        #works only right with positiv numbers (with RGB no issue)
+                        aver_sidevalue = (self.r_matrix[i-1][j-1] +
+                                          self.r_matrix[i+1][j+1] +
+                                          self.r_matrix[i+1][j-1] +
+                                          self.r_matrix[i-1][j+1]
+                                         ) / 4
+
+                        deviation = abs(value - aver_sidevalue)
+                            
+                        self.layer_raster[i][j] = deviation
+                        self.layer_raster[i+1][j] = deviation
+                        self.layer_raster[i][j+1] = deviation
+                        self.layer_raster[i+1][j+1] = deviation
+                        self.layer_raster[i-1][j] = deviation
+                        self.layer_raster[i][j-1] = deviation
+                        self.layer_raster[i-1][j-1] = deviation
+                        self.layer_raster[i-1][j+1] = deviation
+                        self.layer_raster[i+1][j-1] = deviation
+                            
+                self.layer_raster = np.clip(self.layer_raster, 0, 1)
+
 
 if __name__ == "__main__":
     print("RGBMatrix--V-0.002")
